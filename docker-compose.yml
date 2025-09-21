@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: vpn
+      POSTGRES_PASSWORD: vpn
+      POSTGRES_DB: vpn
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  bot:
+    build: .
+    depends_on:
+      - db
+    environment:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      ADMIN_IDS: ${ADMIN_IDS}
+      PANEL_URL: ${PANEL_URL}
+      PANEL_TOKEN: ${PANEL_TOKEN}
+      DB_DSN: postgres://vpn:vpn@db:5432/vpn?sslmode=disable
+
+volumes:
+  db_data:
