@@ -38,6 +38,7 @@ func main() {
 
 	panelClient := panel.New(cfg.PanelURL, sessionCookie)
 
+
 	api, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
 	if err != nil {
 		log.Fatalf("new bot: %v", err)

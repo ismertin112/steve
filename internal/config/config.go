@@ -13,6 +13,7 @@ type Config struct {
 	PanelURL      string
 	PanelUser     string
 	PanelPass     string
+
 	DBDSN         string
 }
 
@@ -53,6 +54,7 @@ func Load() (*Config, error) {
 	cfg.PanelPass = os.Getenv("PANEL_PASS")
 	if cfg.PanelPass == "" {
 		return nil, fmt.Errorf("PANEL_PASS is required")
+
 	}
 
 	cfg.DBDSN = os.Getenv("DB_DSN")

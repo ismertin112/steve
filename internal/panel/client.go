@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"vpn-bot/internal/panel/auth"
+
 )
 
 type Client struct {
@@ -18,6 +19,7 @@ type Client struct {
 
 	mu      sync.RWMutex
 	session *http.Cookie
+
 }
 
 type AddClientRequest struct {
@@ -63,6 +65,7 @@ func New(baseURL string, session *http.Cookie) *Client {
 		baseURL:    baseURL,
 		httpClient: &http.Client{Timeout: 15 * time.Second},
 		session:    session,
+
 	}
 }
 
@@ -127,6 +130,7 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 		var err error
 		payload, err = json.Marshal(body)
 		if err != nil {
+
 			return err
 		}
 	}
@@ -194,5 +198,6 @@ func (c *Client) refreshSession() error {
 	c.mu.Lock()
 	c.session = cookie
 	c.mu.Unlock()
+
 	return nil
 }
