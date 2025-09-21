@@ -6,13 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
+
+	"vpn-bot/internal/panel/auth"
+
 )
 
 type Client struct {
 	baseURL    string
-	token      string
 	httpClient *http.Client
+
+	mu      sync.RWMutex
+	session *http.Cookie
+
 }
 
 type AddClientRequest struct {
@@ -53,11 +60,12 @@ type TrafficResponse struct {
 	} `json:"obj"`
 }
 
-func New(baseURL, token string) *Client {
+func New(baseURL string, session *http.Cookie) *Client {
 	return &Client{
 		baseURL:    baseURL,
-		token:      token,
 		httpClient: &http.Client{Timeout: 15 * time.Second},
+		session:    session,
+
 	}
 }
 
@@ -117,33 +125,79 @@ func (c *Client) postGeneric(ctx context.Context, path string, body interface{})
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body interface{}, dest interface{}) error {
-	var buf bytes.Buffer
+	var payload []byte
 	if body != nil {
-		if err := json.NewEncoder(&buf).Encode(body); err != nil {
+		var err error
+		payload, err = json.Marshal(body)
+		if err != nil {
+
 			return err
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, &buf)
+	for attempt := 0; attempt < 2; attempt++ {
+		var reqBody *bytes.Reader
+		if payload != nil {
+			reqBody = bytes.NewReader(payload)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reqBody)
+		if err != nil {
+			return err
+		}
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+
+		if session := c.getSession(); session != nil {
+			req.AddCookie(session)
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode == http.StatusUnauthorized {
+			resp.Body.Close()
+			if err := c.refreshSession(); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if resp.StatusCode >= 300 {
+			resp.Body.Close()
+			return fmt.Errorf("panel request failed: %s", resp.Status)
+		}
+
+		if dest != nil {
+			err = json.NewDecoder(resp.Body).Decode(dest)
+			resp.Body.Close()
+			return err
+		}
+
+		resp.Body.Close()
+		return nil
+	}
+
+	return fmt.Errorf("panel request failed: unauthorized")
+}
+
+func (c *Client) getSession() *http.Cookie {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.session
+}
+
+func (c *Client) refreshSession() error {
+	cookie, err := auth.LoginAndGetSession()
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
+	c.mu.Lock()
+	c.session = cookie
+	c.mu.Unlock()
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("panel request failed: %s", resp.Status)
-	}
-
-	if dest != nil {
-		return json.NewDecoder(resp.Body).Decode(dest)
-	}
 	return nil
 }

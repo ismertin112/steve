@@ -11,6 +11,7 @@ import (
 	"vpn-bot/internal/bot"
 	"vpn-bot/internal/config"
 	"vpn-bot/internal/panel"
+	"vpn-bot/internal/panel/auth"
 	"vpn-bot/internal/scheduler"
 	"vpn-bot/internal/storage"
 )
@@ -28,7 +29,15 @@ func main() {
 	defer db.Close()
 
 	store := storage.New(db)
-	panelClient := panel.New(cfg.PanelURL, cfg.PanelToken)
+	auth.Configure(cfg.PanelURL, cfg.PanelUser, cfg.PanelPass)
+
+	sessionCookie, err := auth.LoginAndGetSession()
+	if err != nil {
+		log.Fatalf("panel login: %v", err)
+	}
+
+	panelClient := panel.New(cfg.PanelURL, sessionCookie)
+
 
 	api, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
 	if err != nil {

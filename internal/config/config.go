@@ -11,7 +11,9 @@ type Config struct {
 	TelegramToken string
 	AdminIDs      []int64
 	PanelURL      string
-	PanelToken    string
+	PanelUser     string
+	PanelPass     string
+
 	DBDSN         string
 }
 
@@ -44,9 +46,15 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("PANEL_URL is required")
 	}
 
-	cfg.PanelToken = os.Getenv("PANEL_TOKEN")
-	if cfg.PanelToken == "" {
-		return nil, fmt.Errorf("PANEL_TOKEN is required")
+	cfg.PanelUser = os.Getenv("PANEL_USER")
+	if cfg.PanelUser == "" {
+		return nil, fmt.Errorf("PANEL_USER is required")
+	}
+
+	cfg.PanelPass = os.Getenv("PANEL_PASS")
+	if cfg.PanelPass == "" {
+		return nil, fmt.Errorf("PANEL_PASS is required")
+
 	}
 
 	cfg.DBDSN = os.Getenv("DB_DSN")
